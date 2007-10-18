@@ -1,5 +1,6 @@
 package org.ogf.sagaImpl.javaGAT.attributes;
 
+import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -22,14 +23,21 @@ import org.ogf.saga.error.Timeout;
 // - what exactly should listAttributes list? All attributes that have a value?
 //   Or just all supported attributes? Or all implemented attributes?
 
-public class Attributes implements org.ogf.saga.attributes.Attributes {
+/**
+ * This is the base class of all attributes in the SAGA implementation on top of
+ * JavaGAT.
+ */
+public class Attributes implements org.ogf.saga.attributes.Attributes, Cloneable {
     
+    // TODO: check that this is the proper format.
     private final SimpleDateFormat dateFormatter
         = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy");
     
+    // Information about attributes: name, type, value,
+    // read/write, removable or not, implemented. 
     private static class AttributeInfo {
         String name;
-        String type;
+        AttributeType type;
         String value;
         String[] vectorValue;
         boolean hasValue;
@@ -38,7 +46,7 @@ public class Attributes implements org.ogf.saga.attributes.Attributes {
         boolean removable;
         boolean notImplemented;
         
-        public AttributeInfo(String name, String type, boolean vector,
+        public AttributeInfo(String name, AttributeType type, boolean vector,
                 boolean readOnly, boolean notImplemented, boolean removable) {
             this.name = name;
             this.type = type;
@@ -53,14 +61,21 @@ public class Attributes implements org.ogf.saga.attributes.Attributes {
     }
     
     private HashMap<String, AttributeInfo> attributes;
-    
+
     public Attributes() {
         attributes = new HashMap<String, AttributeInfo>();
+        dateFormatter.setLenient(false);
     }
     
-    public synchronized void addAttribute(String name, String type, boolean vector,
+    public Object clone() throws CloneNotSupportedException {
+        Attributes clone = (Attributes) super.clone();
+        clone.attributes = new HashMap<String, AttributeInfo>(attributes);
+        return clone;
+    }
+    
+    // Stores information about a specific attribute.
+    public synchronized void addAttribute(String name, AttributeType type, boolean vector,
             boolean readOnly, boolean notImplemented, boolean removeable) {
-        // TODO: check type validity.
         attributes.put(name,
             new AttributeInfo(name, type, vector, readOnly, notImplemented, removeable));
     }
@@ -142,13 +157,13 @@ public class Attributes implements org.ogf.saga.attributes.Attributes {
         return getInfo(key).vector;
     }
 
-    public boolean isWritableAttribute(String key) throws NotImplemented,
+    public synchronized boolean isWritableAttribute(String key) throws NotImplemented,
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             DoesNotExist, Timeout, NoSuccess {
         return ! getInfo(key).readOnly;
     }
 
-    public String[] listAttributes() throws NotImplemented,
+    public synchronized String[] listAttributes() throws NotImplemented,
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             Timeout, NoSuccess {
         HashSet<String> keys = new HashSet<String>();
@@ -164,7 +179,7 @@ public class Attributes implements org.ogf.saga.attributes.Attributes {
         return keys.toArray(new String[keys.size()]);
     }
 
-    public void removeAttribute(String key) throws NotImplemented,
+    public synchronized void removeAttribute(String key) throws NotImplemented,
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             DoesNotExist, Timeout, NoSuccess {
         AttributeInfo info = getInfo(key);
@@ -176,29 +191,94 @@ public class Attributes implements org.ogf.saga.attributes.Attributes {
         info.vectorValue = null;
     }
     
+    // Set method without checks for readOnly. We must be able to set the
+    // attribute, somehow.
     protected synchronized void setValue(String key, String value)
-            throws DoesNotExist, NotImplemented, IncorrectState { 
+            throws DoesNotExist, NotImplemented, IncorrectState, BadParameter { 
         AttributeInfo info = getVectorInfo(key, false);
-        if ("Time".equals(info.type)) {
+        if (info.type == AttributeType.TIME) {
             try {
                 long v = Long.parseLong(value);
                 value = dateFormatter.format(new Date(v));
             } catch(NumberFormatException e) {
-                // ignored. Try and parse value here?
+                // ignored. checkValueType will check the format.
             }
         }
+        checkValueType(info.type, value);
         info.hasValue = true;
         info.value = value;
     }
+ 
+    // Set method without checks for readOnly. We must be able to set the
+    // attribute, somehow.   
+    protected synchronized void setVectorValue(String key, String[] values)
+            throws DoesNotExist, NotImplemented, IncorrectState, BadParameter {
+        AttributeInfo info = getVectorInfo(key, true);
+        
+        values = values.clone();
 
-    public void setAttribute(String key, String value) throws NotImplemented,
+        for (int i = 0; i < values.length; i++) {
+            if (info.type == AttributeType.TIME) {
+                try {
+                    long v = Long.parseLong(values[i]);
+                    values[i] = dateFormatter.format(new Date(v));
+                } catch(NumberFormatException e) {
+                    // ignored. checkValueType will check the format.
+                }
+            }
+            checkValueType(info.type, values[i]);
+        }
+        info.hasValue = true;
+        info.vectorValue = values;
+    }
+    
+    private void checkValueType(AttributeType type, String value) throws BadParameter {
+        if (value == null) {
+            throw new BadParameter("Attribute value set to null");
+        }
+        switch(type) {
+        case STRING:
+            break;
+        case ENUM:
+            // TODO: what to do here? Do we know the possible values?
+            break;
+        case INT:
+            try {
+                Long.parseLong(value);  
+            } catch(NumberFormatException e) {
+                throw new BadParameter("Int-typed attribute set to non-integer " + value);
+            }
+            break;
+        case FLOAT:
+            try {
+                Double.parseDouble(value);
+            } catch(NumberFormatException e) {
+                throw new BadParameter("Float-typed attribute set to non-float " + value);
+            }
+            break;
+        case BOOL:
+            if (! value.equals("True") && ! value.equals("False")) {
+                throw new BadParameter("Bool-typed attribute set to non-bool " + value);
+            }
+            break;
+        case TIME:
+            ParsePosition p = new ParsePosition(0);
+            dateFormatter.parse(value, p);
+            if (p.getErrorIndex() >= 0 || p.getIndex() < value.length()) {
+                throw new BadParameter("Time-values attribute set to non-time " + value);
+            }
+            break;
+        }
+    }
+
+    public synchronized void setAttribute(String key, String value) throws NotImplemented,
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             IncorrectState, BadParameter, DoesNotExist, Timeout, NoSuccess {
         AttributeInfo info = getVectorInfo(key, false);
         if (info.readOnly) {
             throw new PermissionDenied("Attribute " + key + " is readOnly");
         }
-        if ("Time".equals(info.type)) {
+        if (info.type == AttributeType.TIME) {
             try {
                 long v = Long.parseLong(value);
                 value = dateFormatter.format(new Date(v));
@@ -206,19 +286,34 @@ public class Attributes implements org.ogf.saga.attributes.Attributes {
                 // ignored. Try and parse value here?
             }
         }
+        checkValueType(info.type, value);
         info.hasValue = true;
         info.value = value;
     }
 
-    public void setVectorAttribute(String key, String[] values)
+    public synchronized void setVectorAttribute(String key, String[] values)
             throws NotImplemented, AuthenticationFailed, AuthorizationFailed,
             PermissionDenied, IncorrectState, BadParameter, DoesNotExist,
             Timeout, NoSuccess {
         AttributeInfo info = getVectorInfo(key, true);
+
         if (info.readOnly) {
             throw new PermissionDenied("Attribute " + key + " is readOnly");
         }
+        
+        values = values.clone();
+        for (int i = 0; i < values.length; i++) {
+            if (info.type == AttributeType.TIME) {
+                try {
+                    long v = Long.parseLong(values[i]);
+                    values[i] = dateFormatter.format(new Date(v));
+                } catch(NumberFormatException e) {
+                    // ignored. checkValueType will check the format.
+                }
+            }
+            checkValueType(info.type, values[i]);
+        }
         info.hasValue = true;
-        info.vectorValue = values.clone();
-    }
+        info.vectorValue = values;
+    }  
 }

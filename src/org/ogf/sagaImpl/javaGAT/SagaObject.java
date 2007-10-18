@@ -4,7 +4,6 @@ import java.util.UUID;
 
 import org.ogf.saga.ObjectType;
 import org.ogf.saga.error.DoesNotExist;
-import org.ogf.saga.error.NoSuccess;
 import org.ogf.sagaImpl.javaGAT.session.Session;
 
 public abstract class SagaObject implements org.ogf.saga.SagaObject, Cloneable {
@@ -20,12 +19,12 @@ public abstract class SagaObject implements org.ogf.saga.SagaObject, Cloneable {
         return session;
     }
 
-    public abstract org.ogf.saga.SagaObject deepCopy() throws NoSuccess;
-    
     public Object clone() throws CloneNotSupportedException {
         SagaObject clone = (SagaObject) clone();
         // Should we generate a new uuid here ??? I think yes.
-        // Note: session does not get cloned!
+        // Note: session should not get cloned! According to the SAGA
+        // specs, it gets "shallow copied", which means that the
+        // object reference is copied.
         clone.uuid = UUID.randomUUID();
         return clone;
     }

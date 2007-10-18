@@ -18,7 +18,10 @@ import org.ogf.saga.task.State;
 import org.ogf.saga.task.TaskMode;
 import org.ogf.sagaImpl.javaGAT.SagaObject;
 
-public class Task extends SagaObject implements org.ogf.saga.task.Task {
+// The SAGA specs warn against using threads. However, the javaGAT does not
+// have task support, so there is no other option.
+
+public class Task<E> extends SagaObject implements org.ogf.saga.task.Task<E> {
 
     private State state = State.NEW;
     private final SagaObject object;
@@ -75,6 +78,16 @@ public class Task extends SagaObject implements org.ogf.saga.task.Task {
         return object;
     }
 
+    /*
+     * (non-Javadoc)
+     * 
+     * see org.ogf.saga.task.Task#getResult()
+     */
+    public E getResult() throws NotImplemented, IncorrectState, Timeout,
+           NoSuccess {
+        return null;
+    }
+    
     /*
      * (non-Javadoc)
      * 
@@ -197,16 +210,6 @@ public class Task extends SagaObject implements org.ogf.saga.task.Task {
         }
  
         return state == State.SUSPENDED || state == State.RUNNING;
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see org.ogf.saga.SagaObject#deepCopy()
-     */
-    public org.ogf.saga.SagaObject deepCopy() throws NoSuccess {
-        // TODO Auto-generated method stub
-        return null;
     }
 
     /*

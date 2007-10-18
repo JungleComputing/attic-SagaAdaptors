@@ -12,13 +12,13 @@ import org.ogf.saga.error.PermissionDenied;
 import org.ogf.saga.error.Timeout;
 import org.ogf.saga.namespace.NSDirectory;
 import org.ogf.saga.session.Session;
-import org.ogf.saga.task.RVTask;
+import org.ogf.saga.task.Task;
 import org.ogf.saga.task.TaskMode;
 
 public class NSFactory extends org.ogf.saga.namespace.NSFactory {
 
     @Override
-    protected RVTask<NSDirectory> doCreateNSDirectory(TaskMode mode,
+    protected Task<NSDirectory> doCreateNSDirectory(TaskMode mode,
             Session session, URL name, int flags) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
@@ -34,7 +34,7 @@ public class NSFactory extends org.ogf.saga.namespace.NSFactory {
     }
 
     @Override
-    protected RVTask<org.ogf.saga.namespace.NSEntry> doCreateNSEntry(TaskMode mode,
+    protected Task<org.ogf.saga.namespace.NSEntry> doCreateNSEntry(TaskMode mode,
             Session session, URL name, int flags) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;

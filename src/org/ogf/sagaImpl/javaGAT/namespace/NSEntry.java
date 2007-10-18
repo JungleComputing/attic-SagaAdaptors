@@ -12,7 +12,6 @@ import org.ogf.saga.error.NoSuccess;
 import org.ogf.saga.error.NotImplemented;
 import org.ogf.saga.error.PermissionDenied;
 import org.ogf.saga.error.Timeout;
-import org.ogf.saga.task.RVTask;
 import org.ogf.saga.task.Task;
 import org.ogf.saga.task.TaskMode;
 import org.ogf.sagaImpl.javaGAT.SagaObject;
@@ -28,12 +27,6 @@ public class NSEntry extends SagaObject implements
     
     NSEntry(org.ogf.saga.session.Session session, URL name, int flags) {
         super((Session) session);
-    }
-
-    @Override
-    public org.ogf.saga.SagaObject deepCopy() throws NoSuccess {
-        // TODO Auto-generated method stub
-        return null;
     }
 
     @Override
@@ -91,7 +84,7 @@ public class NSEntry extends SagaObject implements
         return null;
     }
 
-    public RVTask<URL> getCWD(TaskMode mode) throws NotImplemented {
+    public Task<URL> getCWD(TaskMode mode) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
     }
@@ -102,7 +95,7 @@ public class NSEntry extends SagaObject implements
         return null;
     }
 
-    public RVTask<String> getName(TaskMode mode) throws NotImplemented {
+    public Task<String> getName(TaskMode mode) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
     }
@@ -113,7 +106,7 @@ public class NSEntry extends SagaObject implements
         return null;
     }
 
-    public RVTask<URL> getURL(TaskMode mode) throws NotImplemented {
+    public Task<URL> getURL(TaskMode mode) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
     }
@@ -125,7 +118,7 @@ public class NSEntry extends SagaObject implements
         return false;
     }
 
-    public RVTask<Boolean> isDir(TaskMode mode, int flags)
+    public Task<Boolean> isDir(TaskMode mode, int flags)
             throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
@@ -138,7 +131,7 @@ public class NSEntry extends SagaObject implements
         return false;
     }
 
-    public RVTask<Boolean> isEntry(TaskMode mode, int flags)
+    public Task<Boolean> isEntry(TaskMode mode, int flags)
             throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
@@ -151,7 +144,7 @@ public class NSEntry extends SagaObject implements
         return false;
     }
 
-    public RVTask<Boolean> isLink(TaskMode mode, int flags)
+    public Task<Boolean> isLink(TaskMode mode, int flags)
             throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
@@ -218,7 +211,7 @@ public class NSEntry extends SagaObject implements
         return null;
     }
 
-    public RVTask<URL> readLink(TaskMode mode) throws NotImplemented {
+    public Task<URL> readLink(TaskMode mode) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
     }
@@ -241,7 +234,7 @@ public class NSEntry extends SagaObject implements
         return null;
     }
 
-    public RVTask<String> getGroup(TaskMode mode) throws NotImplemented {
+    public Task<String> getGroup(TaskMode mode) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
     }
@@ -252,7 +245,7 @@ public class NSEntry extends SagaObject implements
         return null;
     }
 
-    public RVTask<String> getOwner(TaskMode mode) throws NotImplemented {
+    public Task<String> getOwner(TaskMode mode) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;
     }
@@ -277,7 +270,7 @@ public class NSEntry extends SagaObject implements
         return false;
     }
 
-    public RVTask<Boolean> permissionsCheck(TaskMode mode, String id,
+    public Task<Boolean> permissionsCheck(TaskMode mode, String id,
             int permissions) throws NotImplemented {
         // TODO Auto-generated method stub
         return null;

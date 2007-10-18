@@ -8,9 +8,10 @@ import org.gridlab.gat.security.SecurityContext;
 import org.ogf.saga.ObjectType;
 import org.ogf.saga.context.Context;
 import org.ogf.saga.error.DoesNotExist;
-import org.ogf.saga.error.NoSuccess;
 import org.ogf.saga.error.NotImplemented;
 import org.ogf.sagaImpl.javaGAT.SagaObject;
+
+// Question: where to call GAT.end() ???
 
 /**
  * Corresponds to a JavaGat Context.
@@ -35,8 +36,15 @@ public class Session extends SagaObject implements org.ogf.saga.session.Session 
         if (c != null) {
             return c;
         }
-        // TODO: implement
-        return null;
+        c = ((org.ogf.sagaImpl.javaGAT.context.Context) context).cvt2GATContext();
+        try {
+            context = (Context) context.clone();
+        } catch(CloneNotSupportedException e) {
+            // Should not happen
+        }
+        map.put(context, c);
+        reverseMap.put(c, context);
+        return c;
     }
     
     public synchronized void addContext(Context context) throws NotImplemented {
@@ -44,12 +52,24 @@ public class Session extends SagaObject implements org.ogf.saga.session.Session 
     }
 
     public void close() throws NotImplemented {
-        // nothing, for now.
+        map = null;
+        reverseMap = null;
+        gatContext = null;
+    }
+
+    protected void finalize() {
+        try {
+            close();
+        } catch(Throwable e) {
+            // ignored
+        }
     }
     
     @SuppressWarnings("unchecked")
     public synchronized Object clone() throws CloneNotSupportedException {
         Session clone = (Session) super.clone();
+        clone.map = new HashMap<Context, SecurityContext>(map);
+        clone.reverseMap = new HashMap<SecurityContext, Context>(reverseMap);
         clone.gatContext = (GATContext) gatContext.clone(); 
         return clone;
     }
@@ -64,8 +84,8 @@ public class Session extends SagaObject implements org.ogf.saga.session.Session 
         int i = 0;
         for (SecurityContext c : l) {
             try {
-                contexts[i++] = (Context) reverseMap.get(c).deepCopy();
-            } catch(NoSuccess e) {
+                contexts[i++] = (Context) reverseMap.get(c).clone();
+            } catch(CloneNotSupportedException e) {
                 // should not happen.
                 contexts[i++] = null;
             }
@@ -82,15 +102,6 @@ public class Session extends SagaObject implements org.ogf.saga.session.Session 
         map.remove(context);
         reverseMap.remove(c);
         gatContext.removeSecurityContext(c);
-    }
-
-    public org.ogf.saga.SagaObject deepCopy() throws NoSuccess {
-        try {
-            return (org.ogf.saga.SagaObject) clone();
-        } catch(CloneNotSupportedException e) {
-            // should not happen.
-            throw new NoSuccess("Got CloneNotSupportedException!", e);
-        }
     }
 
     public ObjectType getType() {

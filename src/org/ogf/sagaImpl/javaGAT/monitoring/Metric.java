@@ -1,7 +1,9 @@
-package org.ogf.sagaImpl.javaGAT.context;
+package org.ogf.sagaImpl.javaGAT.monitoring;
 
-import org.gridlab.gat.security.SecurityContext;
+import java.util.ArrayList;
+
 import org.ogf.saga.ObjectType;
+import org.ogf.saga.attributes.Attributes;
 import org.ogf.saga.error.AuthenticationFailed;
 import org.ogf.saga.error.AuthorizationFailed;
 import org.ogf.saga.error.BadParameter;
@@ -11,60 +13,35 @@ import org.ogf.saga.error.NoSuccess;
 import org.ogf.saga.error.NotImplemented;
 import org.ogf.saga.error.PermissionDenied;
 import org.ogf.saga.error.Timeout;
+import org.ogf.saga.monitoring.Callback;
 import org.ogf.sagaImpl.javaGAT.SagaObject;
 
-public class Context extends SagaObject implements org.ogf.saga.context.Context {
-    
-    private ContextAttributes attributes;
-    
-    Context(String type) throws NotImplemented, IncorrectState, Timeout, NoSuccess {
-        super(null);
-        attributes = new ContextAttributes();
-        if (type != null && ! type.equals("")) {
-            try {
-                attributes.setValue(TYPE, type);
-            } catch(Throwable e) {
-                throw new NoSuccess("Oops, could not set TYPE attribute", e);
-            }
-            setDefaults();
-        }
-    }
-    
-    public Object clone() throws CloneNotSupportedException {
-        Context clone = (Context) super.clone();
-        clone.attributes = (ContextAttributes) attributes.clone();
-        return clone;
-    }
+// Question: how does a metric obtain the Monitorable and context to
+// pass on to callbacks???
 
+public class Metric extends SagaObject implements Attributes,
+        org.ogf.saga.monitoring.Metric {
+    
+    private final MetricAttributes attributes = new MetricAttributes();
+    private final ArrayList<Callback> callBacks = new ArrayList<Callback>();
+    
+    Metric(String name, String desc, String mode,
+            String unit, String type, String value) {
+        super(null);
+    }
+    
     @Override
     public ObjectType getType() {
-        return ObjectType.CONTEXT;
+        return ObjectType.METRIC;
     }
 
-    public void setDefaults() throws NotImplemented, IncorrectState, Timeout,
-            NoSuccess {
-        String type;
-        try {
-            type = attributes.getAttribute(TYPE);
-        } catch(DoesNotExist e1) {
-            throw new IncorrectState("setDefaults called but TYPE attribute not set");
-        } catch(Throwable e) {
-            // Should not happen.
-            throw new NoSuccess("could not get TYPE attribute", e);
-        }
-        if (! type.equals("")) {
-            throw new NoSuccess("Unregognized TYPE attribute value: " + type);
-            // TODO: implement.
-        }
-    }
-
-    public String[] findAttributes(String pattern)
-            throws NotImplemented, BadParameter, AuthenticationFailed,
-            AuthorizationFailed, PermissionDenied, Timeout, NoSuccess {
+    public synchronized String[] findAttributes(String pattern) throws NotImplemented,
+            BadParameter, AuthenticationFailed, AuthorizationFailed,
+            PermissionDenied, Timeout, NoSuccess {
         return attributes.findAttributes(pattern);
     }
 
-    public String getAttribute(String key) throws NotImplemented,
+    public synchronized String getAttribute(String key) throws NotImplemented,
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             IncorrectState, DoesNotExist, Timeout, NoSuccess {
         return attributes.getAttribute(key);
@@ -75,7 +52,7 @@ public class Context extends SagaObject implements org.ogf.saga.context.Context 
             IncorrectState, DoesNotExist, Timeout, NoSuccess {
         return attributes.getVectorAttribute(key);
     }
-    
+
     public boolean isReadOnlyAttribute(String key) throws NotImplemented,
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             DoesNotExist, Timeout, NoSuccess {
@@ -110,6 +87,7 @@ public class Context extends SagaObject implements org.ogf.saga.context.Context 
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             DoesNotExist, Timeout, NoSuccess {
         attributes.removeAttribute(key);
+
     }
 
     public void setAttribute(String key, String value) throws NotImplemented,
@@ -123,10 +101,41 @@ public class Context extends SagaObject implements org.ogf.saga.context.Context 
             PermissionDenied, IncorrectState, BadParameter, DoesNotExist,
             Timeout, NoSuccess {
         attributes.setVectorAttribute(key, values);
+
     }
-    
-    public SecurityContext cvt2GATContext() {
-        // TODO: implement
-        return null;
+
+    public synchronized int addCallback(Callback cb) throws NotImplemented,
+            AuthenticationFailed, AuthorizationFailed, PermissionDenied,
+            IncorrectState, Timeout, NoSuccess {
+        // TODO: if type of metric is Final, throw IncorrectState.
+        callBacks.add(cb);
+        return callBacks.size()-1;
     }
+
+    public void fire() throws NotImplemented, AuthenticationFailed,
+            AuthorizationFailed, PermissionDenied, IncorrectState, Timeout,
+            NoSuccess {
+        // TODO Auto-generated method stub
+
+    }
+
+    public synchronized void removeCallback(int cookie) throws NotImplemented, BadParameter,
+            AuthenticationFailed, AuthorizationFailed, PermissionDenied,
+            IncorrectState, Timeout, NoSuccess {
+        if (cookie >= callBacks.size()) {
+            throw new BadParameter("removeCallback with invalid cookie: " + cookie);
+        }
+        if (callBacks.get(cookie) == null) {
+            return;
+        }
+        Callback cb = callBacks.get(cookie);
+        if (cb == null) {
+            return;
+        }
+        callBacks.set(cookie, null);
+        // TODO: wait until a possible invocation of this callback
+        // (from this metric!) is finished.
+
+    }
+
 }
