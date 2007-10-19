@@ -1,5 +1,10 @@
 package org.ogf.sagaImpl.javaGAT.task;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import org.ogf.saga.ObjectType;
 import org.ogf.saga.error.AlreadyExists;
 import org.ogf.saga.error.AuthenticationFailed;
@@ -19,9 +24,9 @@ import org.ogf.saga.task.TaskMode;
 import org.ogf.sagaImpl.javaGAT.SagaObject;
 
 // The SAGA specs warn against using threads. However, the javaGAT does not
-// have task support, so there is no other option.
+// have task support, so there really is no other option.
 
-public class Task<E> extends SagaObject implements org.ogf.saga.task.Task<E> {
+public class Task<E> extends SagaObject implements org.ogf.saga.task.Task<E>, Future<E> {
 
     private State state = State.NEW;
     private final SagaObject object;
@@ -53,8 +58,7 @@ public class Task<E> extends SagaObject implements org.ogf.saga.task.Task<E> {
      */
     public void cancel() throws NotImplemented, IncorrectState, Timeout,
             NoSuccess {
-        // TODO Auto-generated method stub
-
+        cancel(true);
     }
 
     /*
@@ -268,6 +272,30 @@ public class Task<E> extends SagaObject implements org.ogf.saga.task.Task<E> {
             AuthenticationFailed, AuthorizationFailed, PermissionDenied {
         // TODO Auto-generated method stub
 
+    }
+
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
+    public E get() throws InterruptedException, ExecutionException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public E get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public boolean isCancelled() {
+        return state == State.CANCELED;
+    }
+
+    public synchronized boolean isDone() {
+        return state == State.DONE || state == State.FAILED
+            || state == State.CANCELED;
     }
 
 }

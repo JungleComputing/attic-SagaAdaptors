@@ -1,6 +1,8 @@
 package org.ogf.sagaImpl.javaGAT.monitoring;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.ogf.saga.ObjectType;
 import org.ogf.saga.attributes.Attributes;
@@ -14,22 +16,83 @@ import org.ogf.saga.error.NotImplemented;
 import org.ogf.saga.error.PermissionDenied;
 import org.ogf.saga.error.Timeout;
 import org.ogf.saga.monitoring.Callback;
+import org.ogf.saga.monitoring.Monitorable;
 import org.ogf.sagaImpl.javaGAT.SagaObject;
-
-// Question: how does a metric obtain the Monitorable and context to
-// pass on to callbacks???
 
 public class Metric extends SagaObject implements Attributes,
         org.ogf.saga.monitoring.Metric {
     
+    /** Threadpool for dealing with callbacks. */
+    private static ExecutorService callbackHandler = Executors.newCachedThreadPool();
+    
+    private class CallbackHandler implements Runnable {
+        boolean busy = false;
+        private Callback cb;
+        private Metric metric;
+        private int cookie;
+        
+        public CallbackHandler(Callback cb, Metric metric, int cookie) {
+            this.cb = cb;
+            this.metric = metric;
+            this.cookie = cookie;
+        }
+        
+        public void run() {        // Wait until a previous invocation of this cb
+            // is finished, then set a flag that it is busy.
+            synchronized(this) {
+                while (busy) {
+                    try {
+                        wait();
+                    } catch(Exception e) {
+                        // ignored
+                    }
+                }
+                busy = true;
+            }
+            
+            boolean retval;
+            try {
+                retval = cb.cb(monitorable, metric, null);
+            } catch(Throwable e) {
+                // if callback throws an exception, keep the callback.
+                retval = true;
+            }
+            if (! retval) {
+                try {
+                    metric.removeCallback(cookie);
+                } catch(Throwable e) {
+                    // ignored
+                }
+            }
+            
+            // Release busy flag, notify waiters.
+            synchronized(this) {
+                busy = false;
+                notifyAll();
+            }            
+        }        
+    };
+    
     private final MetricAttributes attributes = new MetricAttributes();
-    private final ArrayList<Callback> callBacks = new ArrayList<Callback>();
+    private final ArrayList<CallbackHandler> callBacks = new ArrayList<CallbackHandler>();
+    private Monitorable monitorable;
     
     Metric(String name, String desc, String mode,
             String unit, String type, String value) {
         super(null);
     }
     
+    public Metric(Monitorable monitorable, String name, String desc,
+            String mode, String unit, String type, String value) {
+        this(name, desc, mode, unit, type, value);
+        this.monitorable = monitorable;
+    }
+
+    // This method is to be called from addMetric() implementations.
+    public synchronized void setMonitorable(Monitorable monitorable) {
+        this.monitorable = monitorable;
+    }
+
     @Override
     public ObjectType getType() {
         return ObjectType.METRIC;
@@ -108,34 +171,59 @@ public class Metric extends SagaObject implements Attributes,
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             IncorrectState, Timeout, NoSuccess {
         // TODO: if type of metric is Final, throw IncorrectState.
-        callBacks.add(cb);
+        CallbackHandler b = new CallbackHandler(cb, this, callBacks.size());
+        callBacks.add(b);
         return callBacks.size()-1;
     }
 
     public void fire() throws NotImplemented, AuthenticationFailed,
             AuthorizationFailed, PermissionDenied, IncorrectState, Timeout,
             NoSuccess {
-        // TODO Auto-generated method stub
-
+        
+        ArrayList<CallbackHandler> cbhs;
+        
+        synchronized(this) {
+            cbhs = new ArrayList<CallbackHandler>(callBacks);
+        }
+        
+        synchronized(callbackHandler) {            
+            for (CallbackHandler cbh : cbhs) {
+                if (cbh != null) {
+                    callbackHandler.submit(cbh);
+                }
+            }
+        }
     }
-
-    public synchronized void removeCallback(int cookie) throws NotImplemented, BadParameter,
+  
+    public void removeCallback(int cookie) throws NotImplemented, BadParameter,
             AuthenticationFailed, AuthorizationFailed, PermissionDenied,
             IncorrectState, Timeout, NoSuccess {
-        if (cookie >= callBacks.size()) {
-            throw new BadParameter("removeCallback with invalid cookie: " + cookie);
-        }
-        if (callBacks.get(cookie) == null) {
-            return;
-        }
-        Callback cb = callBacks.get(cookie);
-        if (cb == null) {
-            return;
-        }
-        callBacks.set(cookie, null);
-        // TODO: wait until a possible invocation of this callback
-        // (from this metric!) is finished.
+        
+        CallbackHandler cb;
+        
+        synchronized(this) {
+            if (cookie >= callBacks.size()) {
+                throw new BadParameter("removeCallback with invalid cookie: " + cookie);
+            }
 
+            cb = callBacks.get(cookie);
+            if (cb == null) {
+                return;
+            }
+            callBacks.set(cookie, null);
+        }
+
+        // The SAGA specs prescribe that we block here until no
+        // activation of the removed method is active.
+        synchronized(cb) {
+            while (cb.busy) {
+                try {
+                    cb.wait();
+                } catch(Exception e) {
+                    // ignored
+                }
+            }
+        }
     }
 
 }
